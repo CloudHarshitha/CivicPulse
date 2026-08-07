@@ -6,11 +6,15 @@ import { createClient } from '@supabase/supabase-js';
  * DO NOT expose this client to the browser.
  */
 export function createAdminClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  let supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl) {
     throw new Error('NEXT_PUBLIC_SUPABASE_URL is required');
+  }
+  
+  if (!supabaseUrl.startsWith('http')) {
+    supabaseUrl = `https://${supabaseUrl}`;
   }
 
   return createClient(supabaseUrl, serviceRoleKey!, {
