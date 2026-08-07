@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background -->
+  <rect width="512" height="512" rx="112" fill="#00427a" />
+  
+  <!-- Outer border -->
+  <rect x="32" y="32" width="448" height="448" rx="80" fill="none" stroke="#e65100" stroke-width="16" />
+  
+  <!-- Text CP -->
+  <text x="256" y="315" font-family="Arial, sans-serif" font-weight="900" font-size="220" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">
+    CP
+  </text>
+  
+  <!-- Accent Line -->
+  <rect x="156" y="400" width="200" height="16" rx="8" fill="#e65100" />
+</svg>
