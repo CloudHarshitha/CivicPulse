@@ -21,6 +21,9 @@ export function createAdminClient() {
     if (!supabaseUrl.startsWith('http')) {
       supabaseUrl = `https://${supabaseUrl}`;
     }
+    try {
+      supabaseUrl = new URL(supabaseUrl).origin;
+    } catch (e) {}
   }
 
   return createClient(supabaseUrl, serviceRoleKey!, {

@@ -14,6 +14,9 @@ export async function createClient() {
     if (!url.startsWith('http')) {
       url = `https://${url}`;
     }
+    try {
+      url = new URL(url).origin;
+    } catch (e) {}
   }
 
   return createServerClient(
