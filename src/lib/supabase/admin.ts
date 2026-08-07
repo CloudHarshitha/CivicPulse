@@ -13,8 +13,14 @@ export function createAdminClient() {
     throw new Error('NEXT_PUBLIC_SUPABASE_URL is required');
   }
   
-  if (!supabaseUrl.startsWith('http')) {
-    supabaseUrl = `https://${supabaseUrl}`;
+  if (supabaseUrl) {
+    supabaseUrl = supabaseUrl.trim();
+    if (!supabaseUrl.includes('.') && !supabaseUrl.includes('localhost')) {
+      supabaseUrl = `${supabaseUrl}.supabase.co`;
+    }
+    if (!supabaseUrl.startsWith('http')) {
+      supabaseUrl = `https://${supabaseUrl}`;
+    }
   }
 
   return createClient(supabaseUrl, serviceRoleKey!, {
