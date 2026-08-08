@@ -301,6 +301,122 @@ export default function RegisterPage() {
                           {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                         </button>
                       </div>
+
+                      {/* Password Requirements Checklist */}
+                      <div className="mt-3 p-3 bg-[#f9fafb] border border-[var(--border)] rounded-[2px]">
+                        <p className="text-xs font-bold text-[var(--foreground)] mb-2 uppercase tracking-wide">
+                          Password Requirements
+                        </p>
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-2 text-xs">
+                            {formData.password === '' ? (
+                              <span className="w-4 h-4 rounded-full border-2 border-[#d1d5db] flex items-center justify-center text-[#6b7280]">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#d1d5db]"></span>
+                              </span>
+                            ) : passwordMetrics.hasMinLength ? (
+                              <CheckCircle2 size={16} className="text-[#16a34a] shrink-0" />
+                            ) : (
+                              <XCircle size={16} className="text-[#dc2626] shrink-0" />
+                            )}
+                            <span className={`font-medium ${
+                              formData.password === '' ? 'text-[#6b7280]' : 
+                              passwordMetrics.hasMinLength ? 'text-[#16a34a]' : 'text-[#dc2626]'
+                            }`}>
+                              At least 8 characters
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2 text-xs">
+                            {formData.password === '' ? (
+                              <span className="w-4 h-4 rounded-full border-2 border-[#d1d5db] flex items-center justify-center text-[#6b7280]">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#d1d5db]"></span>
+                              </span>
+                            ) : passwordMetrics.hasUpper ? (
+                              <CheckCircle2 size={16} className="text-[#16a34a] shrink-0" />
+                            ) : (
+                              <XCircle size={16} className="text-[#dc2626] shrink-0" />
+                            )}
+                            <span className={`font-medium ${
+                              formData.password === '' ? 'text-[#6b7280]' : 
+                              passwordMetrics.hasUpper ? 'text-[#16a34a]' : 'text-[#dc2626]'
+                            }`}>
+                              One uppercase letter (A-Z)
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2 text-xs">
+                            {formData.password === '' ? (
+                              <span className="w-4 h-4 rounded-full border-2 border-[#d1d5db] flex items-center justify-center text-[#6b7280]">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#d1d5db]"></span>
+                              </span>
+                            ) : passwordMetrics.hasLower ? (
+                              <CheckCircle2 size={16} className="text-[#16a34a] shrink-0" />
+                            ) : (
+                              <XCircle size={16} className="text-[#dc2626] shrink-0" />
+                            )}
+                            <span className={`font-medium ${
+                              formData.password === '' ? 'text-[#6b7280]' : 
+                              passwordMetrics.hasLower ? 'text-[#16a34a]' : 'text-[#dc2626]'
+                            }`}>
+                              One lowercase letter (a-z)
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2 text-xs">
+                            {formData.password === '' ? (
+                              <span className="w-4 h-4 rounded-full border-2 border-[#d1d5db] flex items-center justify-center text-[#6b7280]">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#d1d5db]"></span>
+                              </span>
+                            ) : passwordMetrics.hasNumber ? (
+                              <CheckCircle2 size={16} className="text-[#16a34a] shrink-0" />
+                            ) : (
+                              <XCircle size={16} className="text-[#dc2626] shrink-0" />
+                            )}
+                            <span className={`font-medium ${
+                              formData.password === '' ? 'text-[#6b7280]' : 
+                              passwordMetrics.hasNumber ? 'text-[#16a34a]' : 'text-[#dc2626]'
+                            }`}>
+                              One number (0-9)
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2 text-xs">
+                            {formData.password === '' ? (
+                              <span className="w-4 h-4 rounded-full border-2 border-[#d1d5db] flex items-center justify-center text-[#6b7280]">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#d1d5db]"></span>
+                              </span>
+                            ) : passwordMetrics.hasSpecial ? (
+                              <CheckCircle2 size={16} className="text-[#16a34a] shrink-0" />
+                            ) : (
+                              <XCircle size={16} className="text-[#dc2626] shrink-0" />
+                            )}
+                            <span className={`font-medium ${
+                              formData.password === '' ? 'text-[#6b7280]' : 
+                              passwordMetrics.hasSpecial ? 'text-[#16a34a]' : 'text-[#dc2626]'
+                            }`}>
+                              One special character (!@#$%^&*)
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Password Strength Indicator */}
+                        {formData.password !== '' && (
+                          <div className="mt-3 pt-3 border-t border-[var(--border)]">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="text-xs font-bold text-[var(--foreground)]">Password Strength:</span>
+                              <span className={`text-xs font-bold px-2 py-0.5 rounded-[2px] ${passwordMetrics.strengthColor}`}>
+                                {passwordMetrics.strength}
+                              </span>
+                            </div>
+                            <div className="w-full bg-[#e5e7eb] rounded-full h-1.5 overflow-hidden">
+                              <div
+                                className={`h-full ${passwordMetrics.barColor} transition-all duration-300`}
+                                style={{ width: passwordMetrics.barWidth === 'w-1/3' ? '33.33%' : passwordMetrics.barWidth === 'w-2/3' ? '66.66%' : '100%' }}
+                              ></div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -403,9 +519,9 @@ export default function RegisterPage() {
                 )}
                 {step < 3 ? (
                   <button
-                    type="button"
-                    onClick={nextStep}
-                    className="gov-btn-primary flex-1 text-xs font-bold uppercase py-2.5"
+                    type="submit"
+                    disabled={step === 1 && !passwordMetrics.isValid}
+                    className="gov-btn-primary flex-1 text-xs font-bold uppercase py-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Next Step <ArrowRight size={14} className="inline ml-1" />
                   </button>
