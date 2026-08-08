@@ -43,7 +43,8 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from('issues')
       .select('*, reporter:profiles!reporter_id(full_name, avatar_url)', { count: 'exact' })
-      .neq('status', 'rejected');
+      .neq('status', 'rejected')
+      .neq('status', 'pending_verification');  // Fix #7: hide unverified issues from public feed
 
     if (category) query = query.eq('category', category);
     if (priority) query = query.eq('priority', priority);

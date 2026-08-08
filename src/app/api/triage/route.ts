@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { IssueCategory, IssuePriority } from '@/types';
 import { getSLADeadline, getDepartmentForCategory } from '@/lib/sla';
 import { getSeverityWeight } from '@/lib/scoring';

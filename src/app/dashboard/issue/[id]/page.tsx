@@ -217,9 +217,9 @@ export default function IssueDetailPage() {
               <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-[var(--border)]">
                 <button 
                   onClick={() => toggleUpvote(issue.id, profile?.id || '')}
-                  className={`gov-btn-secondary flex items-center gap-2 text-xs font-bold uppercase ${issue.upvote_count > 0 ? 'bg-[var(--primary)] text-white border-[var(--primary)]' : ''}`}
+                  className={`gov-btn-secondary flex items-center gap-2 text-xs font-bold uppercase ${issue.user_has_upvoted ? 'bg-[var(--primary)] text-white border-[var(--primary)]' : ''}`}
                 >
-                  <ThumbsUp size={14} className={issue.upvote_count > 0 ? "fill-white" : ""} />
+                  <ThumbsUp size={14} className={issue.user_has_upvoted ? "fill-white" : ""} />
                   Endorse Filing ({issue.upvote_count})
                 </button>
 

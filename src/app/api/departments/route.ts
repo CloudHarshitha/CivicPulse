@@ -66,12 +66,23 @@ export async function POST(request: NextRequest) {
 
     if (assignError) throw assignError;
 
+    // Resolve department name separately BEFORE the update to avoid nested await bug
+    let departmentName: string | null = null;
+    if (department_id) {
+      const { data: deptData } = await supabase
+        .from('departments')
+        .select('name')
+        .eq('id', department_id)
+        .single();
+      departmentName = deptData?.name ?? null;
+    }
+
     // Update issue status to in_progress and set assigned department
     await supabase
       .from('issues')
       .update({
         status: 'in_progress',
-        assigned_department: department_id ? (await supabase.from('departments').select('name').eq('id', department_id).single()).data?.name : null,
+        assigned_department: departmentName,
         updated_at: new Date().toISOString(),
       })
       .eq('id', issue_id);

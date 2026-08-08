@@ -32,6 +32,7 @@ export default function RegisterPage() {
     state: '',
     district: '',
     city: '',
+    ward: 'General',    // Fix #22: ward included in formData
     aadhaarNumber: ''
   });
 
@@ -40,12 +41,12 @@ export default function RegisterPage() {
   };
 
   const validatePassword = (pass: string) => {
-    const trimmed = pass.trim();
-    const hasMinLength = trimmed.length >= 8;
-    const hasUpper = /[A-Z]/.test(trimmed);
-    const hasLower = /[a-z]/.test(trimmed);
-    const hasNumber = /[0-9]/.test(trimmed);
-    const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':",.<>\/?]/.test(trimmed);
+    // Fix #5: test the raw value so all-spaces passwords are correctly rejected
+    const hasMinLength = pass.length >= 8 && pass.trim().length >= 8;
+    const hasUpper = /[A-Z]/.test(pass);
+    const hasLower = /[a-z]/.test(pass);
+    const hasNumber = /[0-9]/.test(pass);
+    const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':",.<>\/?]/.test(pass);
     
     const satisfiedCount = [hasMinLength, hasUpper, hasLower, hasNumber, hasSpecial].filter(Boolean).length;
     const isValid = satisfiedCount === 5;
@@ -129,7 +130,7 @@ export default function RegisterPage() {
         state: formData.state,
         district: formData.district,
         city: formData.city,
-        ward: 'General',
+        ward: formData.ward || 'General',   // Fix #22: use formData.ward
       });
       if (res.error) {
         setError(res.error);

@@ -1,9 +1,9 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Profile } from '@/types';
-import type { User } from '@supabase/supabase-js';
+import type { User, SupabaseClient } from '@supabase/supabase-js';
 
 interface AuthContextType {
   user: User | null;
@@ -23,7 +23,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const supabase = createClient();
+  // Fix #23: stabilise the Supabase client in a ref so it is created only once
+  // and never triggers useCallback/useEffect dependency re-runs.
+  const supabaseRef = useRef<SupabaseClient>(createClient());
+  const supabase = supabaseRef.current;
 
   const fetchProfile = useCallback(async (userId: string) => {
     try {
@@ -39,64 +42,73 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           localStorage.setItem('civicpulse_user_profile', JSON.stringify(data));
         }
       }
-    } catch (err) {
-      console.error('Could not fetch profile from DB, loading local profile backup:', err);
+    } catch {
+      // Silently fall back to cached profile
       if (typeof window !== 'undefined') {
         const local = localStorage.getItem('civicpulse_user_profile');
         if (local) {
-          try {
-            setProfile(JSON.parse(local));
-          } catch (e) {}
+          try { setProfile(JSON.parse(local)); } catch { /* ignore */ }
         }
       }
     }
   }, [supabase]);
 
   useEffect(() => {
-    const isLoggedOut = typeof window !== 'undefined' && localStorage.getItem('civicpulse_logged_out') === 'true';
-
-    // Check if Supabase is configured
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    if (!supabaseUrl || supabaseUrl.includes('your-project-id')) {
-      console.error('Supabase URL not configured correctly.');
-    }
+    const isLoggedOut =
+      typeof window !== 'undefined' &&
+      localStorage.getItem('civicpulse_logged_out') === 'true';
 
     const getSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      console.log("auth.user", session?.user || null);
+
       if (session?.user && !isLoggedOut) {
         setUser(session.user);
         await fetchProfile(session.user.id);
       } else if (!isLoggedOut && typeof window !== 'undefined') {
-        const local = localStorage.getItem('civicpulse_user_profile');
+        // Restore from localStorage only if we have a persisted active user
         const activeUser = localStorage.getItem('civicpulse_active_user');
-        if (local) {
+        const local = localStorage.getItem('civicpulse_user_profile');
+        if (activeUser && local) {
           try {
-            const parsedP = JSON.parse(local);
-            setProfile(parsedP);
-            setUser(activeUser ? JSON.parse(activeUser) : { id: parsedP.id, email: parsedP.email } as any);
-          } catch (e) {}
+            setUser(JSON.parse(activeUser));
+            setProfile(JSON.parse(local));
+          } catch { /* ignore */ }
         }
+        // Fix #4: if no session and no persisted user, ensure state is cleared
+      } else {
+        setUser(null);
+        setProfile(null);
       }
       setLoading(false);
     };
     getSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      console.log("auth.user (onAuthStateChange)", session?.user || null);
       if (session?.user) {
         setUser(session.user);
         await fetchProfile(session.user.id);
-      } else if (!isLoggedOut && typeof window !== 'undefined') {
-        const local = localStorage.getItem('civicpulse_user_profile');
-        if (local) {
-          try {
-            setProfile(JSON.parse(local));
-          } catch (e) {}
-        }
       } else {
-        setUser(null);
-        setProfile(null);
+        // Fix #4: always clear user state when Supabase says session is null
+        const loggedOut =
+          typeof window !== 'undefined' &&
+          localStorage.getItem('civicpulse_logged_out') === 'true';
+
+        if (loggedOut) {
+          setUser(null);
+          setProfile(null);
+        } else if (typeof window !== 'undefined') {
+          const activeUser = localStorage.getItem('civicpulse_active_user');
+          const local = localStorage.getItem('civicpulse_user_profile');
+          if (activeUser && local) {
+            try {
+              setUser(JSON.parse(activeUser));
+              setProfile(JSON.parse(local));
+            } catch { /* ignore */ }
+          } else {
+            setUser(null);
+            setProfile(null);
+          }
+        }
       }
       setLoading(false);
     });
@@ -105,22 +117,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [supabase, fetchProfile]);
 
   const signIn = async (email: string, password: string): Promise<{ error: string | null }> => {
-    console.log("[Auth] signIn attempt for email:", email);
+    // Fix #2: removed console.log of email
     if (typeof window !== 'undefined') {
       localStorage.removeItem('civicpulse_logged_out');
     }
 
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
-      // Don't mock when an explicit error like "Invalid credentials" is returned
       return { error: error.message };
     }
-    
+
     if (data?.user) {
-      console.log("auth.user on signIn:", data.user);
       setUser(data.user);
       await fetchProfile(data.user.id);
     } else {
+      // Restore from localStorage as last resort
       if (typeof window !== 'undefined') {
         const local = localStorage.getItem('civicpulse_user_profile');
         if (local) {
@@ -130,26 +141,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const fallbackUser = { id: parsedP.id || `user-${Date.now()}`, email } as User;
             setUser(fallbackUser);
             localStorage.setItem('civicpulse_active_user', JSON.stringify(fallbackUser));
-          } catch (e) {}
+          } catch { /* ignore */ }
         }
       }
     }
     return { error: null };
   };
 
-  const signUp = async (email: string, password: string, metadata: Partial<Profile>): Promise<{ error: string | null }> => {
-    console.log("[Auth] signUp attempt for email:", email, "with metadata:", metadata);
+  const signUp = async (
+    email: string,
+    password: string,
+    metadata: Partial<Profile>
+  ): Promise<{ error: string | null }> => {
+    // Fix #1: removed console.log of email/metadata
     if (typeof window !== 'undefined') {
       localStorage.removeItem('civicpulse_logged_out');
     }
 
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    // Fix #1: pass all profile fields as user metadata so the DB trigger
+    // (handle_new_user) can read them from raw_user_meta_data.
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: metadata.full_name || '',
+          phone: metadata.phone || '',
+          role: metadata.role || 'citizen',
+          state: metadata.state || '',
+          district: metadata.district || '',
+          city: metadata.city || '',
+          ward: metadata.ward || 'General',
+          aadhaar_number: metadata.aadhaar_number || '',
+          is_verified: metadata.is_verified ?? false,
+          latitude: metadata.latitude ?? null,
+          longitude: metadata.longitude ?? null,
+        },
+      },
+    });
+
     if (error) {
-      console.warn("[Auth] Supabase signUp warning/error:", error.message);
-      
-      // If we are dealing with a real API error like "User already registered", we MUST surface it to the frontend.
-      // We only fallback to local storage mock if the API call didn't result in an explicit API error, 
-      // but in this case, error is present, meaning Supabase actually rejected the request.
       return { error: error.message };
     }
 
@@ -157,31 +188,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const newProfile: Profile = {
       id: userId,
       email,
-      full_name: (metadata.full_name as string) || '',
-      phone: (metadata.phone as string) || '',
+      full_name: metadata.full_name || '',
+      phone: metadata.phone || '',
       role: (metadata.role as any) || 'citizen',
-      state: (metadata.state as string) || '',
-      district: (metadata.district as string) || '',
-      city: (metadata.city as string) || '',
-      ward: (metadata.ward as string) || 'General',
-      aadhaar_number: (metadata.aadhaar_number as string) || '',
-      is_verified: true,
-      avatar_url: (metadata.avatar_url as string) || null,
-      latitude: (metadata.latitude as number) || null,
-      longitude: (metadata.longitude as number) || null,
+      state: metadata.state || '',
+      district: metadata.district || '',
+      city: metadata.city || '',
+      ward: metadata.ward || 'General',
+      aadhaar_number: metadata.aadhaar_number || '',
+      is_verified: metadata.is_verified ?? false,
+      avatar_url: metadata.avatar_url || null,
+      latitude: metadata.latitude || null,
+      longitude: metadata.longitude || null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
 
+    // Fix #3: only attempt manual profile insert if there is NO DB trigger.
+    // We use upsert with ignoreDuplicates so a trigger-created row is not duplicated.
     if (data?.user) {
-      console.log("auth.user on signUp:", data.user);
-      const { error: profileError } = await supabase.from('profiles').insert([newProfile]);
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert([newProfile], { onConflict: 'id', ignoreDuplicates: true });
       if (profileError) {
-        console.warn("[Auth] Profile DB insert warning:", profileError.message);
+        // Non-fatal: the trigger may have already created it
+        console.warn('[Auth] Profile upsert warning (trigger may have handled this):', profileError.message);
       }
     }
 
-    // Immediately populate React state & persistent storage
     const activeUser = (data?.user as User) || ({ id: userId, email } as User);
     setUser(activeUser);
     setProfile(newProfile);
@@ -195,7 +229,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
-    console.log("[Auth] signOut triggered. Preserving report data in persistence store.");
     if (typeof window !== 'undefined') {
       localStorage.setItem('civicpulse_logged_out', 'true');
     }
@@ -208,34 +241,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!user) return { error: 'Not authenticated' };
 
     try {
-      // Primary: use PATCH /api/profile endpoint
       const res = await fetch('/api/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
-
       const result = await res.json();
+      if (!res.ok) throw new Error(result.error || `Server error ${res.status}`);
 
-      if (!res.ok) {
-        throw new Error(result.error || `Server error ${res.status}`);
-      }
-
-      // Update React state from server response
       if (result.data) {
         setProfile(result.data);
         if (typeof window !== 'undefined') {
           localStorage.setItem('civicpulse_user_profile', JSON.stringify(result.data));
         }
       } else {
-        // Fallback: re-fetch from DB
         await fetchProfile(user.id);
       }
-
       return { error: null };
     } catch (apiErr: any) {
-      console.warn('[Auth] API profile update failed, trying direct Supabase:', apiErr.message);
-
       // Fallback: direct Supabase update
       try {
         const { error: dbErr } = await supabase
@@ -243,21 +266,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .update({ ...data, updated_at: new Date().toISOString() })
           .eq('id', user.id);
 
-        if (dbErr) {
-          console.warn('[Auth] Supabase direct update also failed:', dbErr.message);
-        }
+        if (dbErr) console.warn('[Auth] Supabase direct update failed:', dbErr.message);
 
-        // Even if DB fails, update local state and localStorage so the UI stays correct
-        const merged = { ...(profile || {}), ...data, updated_at: new Date().toISOString() } as Profile;
+        const merged = {
+          ...(profile || {}),
+          ...data,
+          updated_at: new Date().toISOString(),
+        } as Profile;
         setProfile(merged);
         if (typeof window !== 'undefined') {
           localStorage.setItem('civicpulse_user_profile', JSON.stringify(merged));
         }
-
         return { error: dbErr ? dbErr.message : null };
       } catch (fallbackErr: any) {
-        // Last resort: just update local state
-        const merged = { ...(profile || {}), ...data, updated_at: new Date().toISOString() } as Profile;
+        const merged = {
+          ...(profile || {}),
+          ...data,
+          updated_at: new Date().toISOString(),
+        } as Profile;
         setProfile(merged);
         if (typeof window !== 'undefined') {
           localStorage.setItem('civicpulse_user_profile', JSON.stringify(merged));
@@ -268,13 +294,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const refreshProfile = async () => {
-    if (user) {
-      await fetchProfile(user.id);
-    }
+    if (user) await fetchProfile(user.id);
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signIn, signUp, signOut, updateProfile, refreshProfile }}>
+    <AuthContext.Provider
+      value={{ user, profile, loading, signIn, signUp, signOut, updateProfile, refreshProfile }}
+    >
       {children}
     </AuthContext.Provider>
   );

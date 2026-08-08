@@ -37,12 +37,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Issue not found' }, { status: 404 });
     }
 
-    // GPS Audit: Compare before/after coordinates (must be within 15 meters)
+    // GPS Audit: Compare before/after coordinates (must be within 50 meters for mobile GPS accuracy)
     const distance = calculateDistance(
       issue.latitude, issue.longitude,
       resolution_latitude, resolution_longitude
     );
-    const gpsAuditPassed = distance <= 15;
+    const gpsAuditPassed = distance <= 50;  // Fix #8: raised from 15m to 50m for real-world GPS accuracy
 
     // Create resolution record
     const verificationDeadline = new Date();

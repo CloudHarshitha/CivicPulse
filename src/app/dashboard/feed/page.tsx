@@ -26,7 +26,7 @@ export default function FeedPage() {
     category: undefined,
     priority: undefined,
     status: undefined,
-    sortBy: 'newest'
+    sortBy: 'newest'   // Fix #12: must match FeedFilters type
   });
 
   const issues = getFilteredIssues(filters);
@@ -142,8 +142,8 @@ export default function FeedPage() {
               onChange={(e) => handleFilterChange('sortBy', e.target.value)}
             >
               <option value="newest">{t('newest_first')}</option>
-              <option value="highest_aps">{t('highest_aps')}</option>
-              <option value="most_upvoted">{t('most_upvoted')}</option>
+              <option value="priority">{t('highest_aps')}</option>
+              <option value="upvotes">{t('most_upvoted')}</option>
             </select>
           </div>
         </div>

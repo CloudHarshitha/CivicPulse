@@ -31,7 +31,6 @@ export async function POST(request: NextRequest) {
 
     let breachedCount = 0;
     let updatedScoreCount = 0;
-    const notificationsToInsert = [];
 
     if (activeIssues && activeIssues.length > 0) {
       for (const issue of activeIssues) {

@@ -22,8 +22,6 @@ export default function SLAMonitorPage() {
   const [isTriggeringWorker, setIsTriggeringWorker] = useState(false);
   const [workerResult, setWorkerResult] = useState<string | null>(null);
 
-  const now = React.useMemo(() => Date.now(), [issues]);
-
   if (!isAuthority) {
     return (
       <div className="max-w-2xl mx-auto py-16 px-4 text-center font-sans">
@@ -45,6 +43,7 @@ export default function SLAMonitorPage() {
     );
   }
 
+  // Fix #14: removed useMemo with stale Date.now() — computed values are fine as plain consts
   const activeIssues = issues.filter(i => !['resolved', 'verified', 'rejected'].includes(i.status));
   const resolvedIssues = issues.filter(i => ['resolved', 'verified'].includes(i.status));
 

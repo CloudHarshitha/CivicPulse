@@ -6,9 +6,26 @@ export async function updateSession(request: NextRequest) {
     request,
   });
 
+  // Fix #21: sanitise the Supabase URL the same way client/server/admin do
+  let supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
+
+  if (supabaseUrl) {
+    supabaseUrl = supabaseUrl.trim();
+    if (!supabaseUrl.includes('.') && !supabaseUrl.includes('localhost')) {
+      supabaseUrl = `${supabaseUrl}.supabase.co`;
+    }
+    if (!supabaseUrl.startsWith('http')) {
+      supabaseUrl = `https://${supabaseUrl}`;
+    }
+    try {
+      supabaseUrl = new URL(supabaseUrl).origin;
+    } catch { /* keep as-is */ }
+  }
+
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseKey,
     {
       cookies: {
         getAll() {
